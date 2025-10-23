@@ -14,7 +14,7 @@ router = APIRouter()
 
 # Set your OpenAI API key (recommended: use environment variable)
 # openai.api_key = os.getenv("OPENAI_API_KEY") || 
-openai.api_key = "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"
+openai.api_key = "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"
 
 class PromptRequest(BaseModel):
     prompt: str
