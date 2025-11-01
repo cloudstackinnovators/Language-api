@@ -21,6 +21,7 @@ class AnkiPackage(Base):
     deck_count = Column(Integer)
     deck_names = Column(JSON)
     language = Column(String(45), nullable=True)
+    data = Column(LargeBinary, nullable=True)
     user = relationship("User", back_populates="anki_packages")
     notes = relationship("AnkiNote", back_populates="anki_package")
 

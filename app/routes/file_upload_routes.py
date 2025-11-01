@@ -20,6 +20,155 @@ router = APIRouter()
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# @router.post("/upload/{language}")
+# async def upload_file(
+#     language: str,
+#     file: UploadFile = File(...),
+#     current_user: User = Depends(get_current_user),
+#     db: Session = Depends(get_db)
+# ):
+#     filename = f"{uuid4()}_{file.filename}"
+#     file_path = os.path.join(UPLOAD_DIR, filename)
+#     try:
+#         with open(file_path, "wb") as buffer:
+#             content = await file.read()
+#             buffer.write(content)
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
+    
+#     extract_dir = 'apkg_extract'
+#     if filename.endswith('.apkg'):
+#         try:
+#             # Extract all contents of the .apkg file to extract_dir/filename/
+#             extract_path = os.path.join(extract_dir, filename)
+#             os.makedirs(extract_path, exist_ok=True)
+#             with zipfile.ZipFile(file_path, 'r') as zf:
+#                 zf.extractall(extract_path)
+#             # Find any file that matches collection.anki* and is not a directory
+#             anki2_filename = None
+            
+#             anki2_files = []
+#             for root, dirs, files in os.walk(extract_path):
+#                 for name in files:
+#                     if name.startswith("collection.anki"):
+#                         anki2_files.append(os.path.join(root, name))
+#             print(language)
+    
+#             if not anki2_files:
+#                 analysis = {"message": ".apkg file missing collection.anki*"}
+#             else:
+#                 analysis = {"processed_files": []}
+#                 for anki2_path in anki2_files:
+#                     try:
+#                         conn = sqlite3.connect(anki2_path)
+#                         cursor = conn.cursor()
+#                         # Count notes
+#                         cursor.execute("SELECT COUNT(*) FROM notes")
+#                         note_count = cursor.fetchone()[0]
+#                         # Count decks (from col table, decks are in JSON in the 'decks' field)
+#                         cursor.execute("SELECT decks, models FROM col")
+#                         row = cursor.fetchone()
+#                         if row is None:
+#                             raise HTTPException(status_code=500, detail="No decks/models found in the col table")
+#                         decks_json = row[0]
+#                         models_json = row[1]
+#                         import json
+#                         decks = json.loads(decks_json)
+#                         deck_count = len(decks)
+#                         models = json.loads(models_json)
+#                         words_fields = []
+#                         for model_id, model_data in models.items():
+#                             for field in model_data.get("flds", []):
+#                                 if field.get("name", "").lower() == language.lower() or field.get("name", "").lower() == "word":
+#                                     words_fields.append({
+#                                         "model_id": model_id,
+#                                         "model_name": model_data.get("name"),
+#                                         "field_name": field.get("name"),
+#                                         "ord": field.get("ord"),
+#                                     })
+#                         print(f"Processing {words_fields[0]['model_name']}-{words_fields[0]['ord']}")
+#                         # Save to MySQL
+#                         anki_package = AnkiPackage(
+#                             filename=filename,
+#                             user_id=current_user.id,
+#                             note_count=note_count,
+#                             deck_count=deck_count,
+#                             deck_names=decks_json,
+#                             language=language
+#                         )
+#                         db.add(anki_package)
+#                         db.commit()
+#                         db.refresh(anki_package)
+
+#                         # Extract and save notes
+#                         cursor.execute("SELECT guid, mid, mod, usn, tags, flds, sfld, csum, flags, data FROM notes")
+#                         notes_rows = cursor.fetchall()
+#                         wordslist = []
+#                         for row in notes_rows:
+#                             # if row[3] > 0:
+#                             note_id, guid, mid, fields = row[0], row[0], row[1], row[5]
+#                             wordField = next((wf for wf in words_fields if wf["model_id"] == str(mid)), None)
+#                             fields = row[5].split('\x1f')
+#                             if wordField:
+#                                 ord_index = wordField["ord"]
+#                                 word_value = fields[ord_index] if len(fields) > ord_index else ''
+#                                 wordAnki = AnkiWord(
+#                                     words=word_value,
+#                                     translated=fields[1] if len(fields) > 1 else '',
+#                                     language=language
+#                                 )
+#                                 db.add(wordAnki)
+#                             else:
+#                                 word_value = fields[0] if fields else ''
+#                             note = AnkiNote(
+#                                 anki_package_id=anki_package.id,
+#                                 guid=row[0],
+#                                 mid=row[1],
+#                                 mod=row[2],
+#                                 usn=row[3],
+#                                 tags=row[4],
+#                                 flds=row[5],
+#                                 sfld=row[6],
+#                                 csum=row[7],
+#                                 flags=row[8],
+#                                 data=row[9]
+#                             )
+#                             db.add(note)
+#                         db.commit()
+#                         conn.close()
+#                         analysis["processed_files"].append({
+#                             "anki2_path": anki2_path,
+#                             "note_count": note_count,
+#                             "deck_count": deck_count,
+#                             "deck_names": [deck.get("name", "") for deck in decks.values()]
+#                         })
+#                     except Exception as e:
+#                         analysis["processed_files"].append({
+#                             "anki2_path": anki2_path,
+#                             "error": str(e)
+#                         })
+#             # New code block ends here
+            
+#         except Exception as e:
+#             analysis = {"error": f"Failed to analyze .apkg: {str(e)}"}
+
+#     return {
+#         "filename": filename,
+#         "message": "File uploaded successfully",
+#         "analysis": analysis
+#     }
+
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from sqlalchemy.orm import Session
+from uuid import uuid4
+import sqlite3
+import json
+import zipfile
+from models import User, AnkiPackage, AnkiNote, AnkiWord  # your SQLAlchemy models
+from dependencies import get_current_user, get_db
+
+router = APIRouter()
+
 @router.post("/upload/{language}")
 async def upload_file(
     language: str,
@@ -27,55 +176,76 @@ async def upload_file(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    filename = f"{uuid4()}_{file.filename}"
-    file_path = os.path.join(UPLOAD_DIR, filename)
     try:
-        with open(file_path, "wb") as buffer:
-            content = await file.read()
-            buffer.write(content)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
-    
-    extract_dir = 'apkg_extract'
-    if filename.endswith('.apkg'):
-        try:
-            # Extract all contents of the .apkg file to extract_dir/filename/
-            extract_path = os.path.join(extract_dir, filename)
-            os.makedirs(extract_path, exist_ok=True)
-            with zipfile.ZipFile(file_path, 'r') as zf:
-                zf.extractall(extract_path)
-            # Find any file that matches collection.anki* and is not a directory
-            anki2_filename = None
-            
-            anki2_files = []
-            for root, dirs, files in os.walk(extract_path):
-                for name in files:
-                    if name.startswith("collection.anki"):
-                        anki2_files.append(os.path.join(root, name))
-            print(language)
-    
-            if not anki2_files:
-                analysis = {"message": ".apkg file missing collection.anki*"}
-            else:
-                analysis = {"processed_files": []}
-                for anki2_path in anki2_files:
-                    try:
-                        conn = sqlite3.connect(anki2_path)
+        # Read the file content directly
+        content = await file.read()
+        filename = f"{uuid4()}_{file.filename}"
+
+        # Save file content to database instead of filesystem
+        anki_package = AnkiPackage(
+            filename=filename,
+            user_id=current_user.id,
+            language=language,
+            data=content  # store raw file bytes
+        )
+        db.add(anki_package)
+        db.commit()
+        db.refresh(anki_package)
+        
+        analysis = {}
+        
+        # Process .apkg content directly from bytes
+        if filename.endswith(".apkg"):
+            try:
+                # Use BytesIO to treat bytes as file for zip extraction
+                from io import BytesIO
+                file_like = BytesIO(content)
+
+                extract_dir = BytesIO()
+                anki2_files = []
+
+                with zipfile.ZipFile(file_like, 'r') as zf:
+                    for name in zf.namelist():
+                        if name.startswith("collection.anki"):
+                            anki2_files.append(name)
+
+                if not anki2_files:
+                    analysis = {"message": ".apkg file missing collection.anki*"}
+                else:
+                    analysis = {"processed_files": []}
+                    for anki2_name in anki2_files:
+                        with zipfile.ZipFile(file_like) as zf:
+                            # Extract the file into memory
+                            anki2_bytes = zf.read(anki2_name)
+
+                        # Connect to SQLite in-memory database
+                        conn = sqlite3.connect(":memory:")
+                        conn.executescript("PRAGMA journal_mode=OFF;")
+                        conn.executescript("PRAGMA synchronous=OFF;")
+                        conn.executescript("PRAGMA temp_store=MEMORY;")
+                        conn.executescript("PRAGMA locking_mode=EXCLUSIVE;")
+                        conn.executescript("PRAGMA foreign_keys=OFF;")
+
+                        # Load SQLite DB from bytes
+                        with open("/tmp/temp_anki2.db", "wb") as temp_db_file:
+                            temp_db_file.write(anki2_bytes)
+                        conn = sqlite3.connect("/tmp/temp_anki2.db")
                         cursor = conn.cursor()
+
                         # Count notes
                         cursor.execute("SELECT COUNT(*) FROM notes")
                         note_count = cursor.fetchone()[0]
-                        # Count decks (from col table, decks are in JSON in the 'decks' field)
+
+                        # Count decks
                         cursor.execute("SELECT decks, models FROM col")
                         row = cursor.fetchone()
                         if row is None:
                             raise HTTPException(status_code=500, detail="No decks/models found in the col table")
-                        decks_json = row[0]
-                        models_json = row[1]
-                        import json
+                        decks_json, models_json = row
                         decks = json.loads(decks_json)
                         deck_count = len(decks)
                         models = json.loads(models_json)
+
                         words_fields = []
                         for model_id, model_data in models.items():
                             for field in model_data.get("flds", []):
@@ -86,77 +256,59 @@ async def upload_file(
                                         "field_name": field.get("name"),
                                         "ord": field.get("ord"),
                                     })
-                        print(f"Processing {words_fields[0]['model_name']}-{words_fields[0]['ord']}")
-                        # Save to MySQL
-                        anki_package = AnkiPackage(
-                            filename=filename,
-                            user_id=current_user.id,
-                            note_count=note_count,
-                            deck_count=deck_count,
-                            deck_names=decks_json,
-                            language=language
-                        )
-                        db.add(anki_package)
-                        db.commit()
-                        db.refresh(anki_package)
 
-                        # Extract and save notes
+                        # Save notes and words to DB
                         cursor.execute("SELECT guid, mid, mod, usn, tags, flds, sfld, csum, flags, data FROM notes")
-                        notes_rows = cursor.fetchall()
-                        wordslist = []
-                        for row in notes_rows:
-                            # if row[3] > 0:
-                            note_id, guid, mid, fields = row[0], row[0], row[1], row[5]
+                        for row in cursor.fetchall():
+                            guid, mid, mod, usn, tags, flds, sfld, csum, flags, data_field = row
+                            fields = flds.split("\x1f")
                             wordField = next((wf for wf in words_fields if wf["model_id"] == str(mid)), None)
-                            fields = row[5].split('\x1f')
                             if wordField:
-                                ord_index = wordField["ord"]
-                                word_value = fields[ord_index] if len(fields) > ord_index else ''
+                                word_value = fields[wordField["ord"]] if len(fields) > wordField["ord"] else ''
+                                translated = fields[1] if len(fields) > 1 else ''
                                 wordAnki = AnkiWord(
                                     words=word_value,
-                                    translated=fields[1] if len(fields) > 1 else '',
+                                    translated=translated,
                                     language=language
                                 )
                                 db.add(wordAnki)
-                            else:
-                                word_value = fields[0] if fields else ''
+
                             note = AnkiNote(
                                 anki_package_id=anki_package.id,
-                                guid=row[0],
-                                mid=row[1],
-                                mod=row[2],
-                                usn=row[3],
-                                tags=row[4],
-                                flds=row[5],
-                                sfld=row[6],
-                                csum=row[7],
-                                flags=row[8],
-                                data=row[9]
+                                guid=guid,
+                                mid=mid,
+                                mod=mod,
+                                usn=usn,
+                                tags=tags,
+                                flds=flds,
+                                sfld=sfld,
+                                csum=csum,
+                                flags=flags,
+                                data=data_field
                             )
                             db.add(note)
                         db.commit()
                         conn.close()
+
                         analysis["processed_files"].append({
-                            "anki2_path": anki2_path,
+                            "anki2_name": anki2_name,
                             "note_count": note_count,
                             "deck_count": deck_count,
                             "deck_names": [deck.get("name", "") for deck in decks.values()]
                         })
-                    except Exception as e:
-                        analysis["processed_files"].append({
-                            "anki2_path": anki2_path,
-                            "error": str(e)
-                        })
-            # New code block ends here
-            
-        except Exception as e:
-            analysis = {"error": f"Failed to analyze .apkg: {str(e)}"}
 
-    return {
-        "filename": filename,
-        "message": "File uploaded successfully",
-        "analysis": analysis
-    }
+            except Exception as e:
+                analysis = {"error": f"Failed to analyze .apkg: {str(e)}"}
+
+        return {
+            "filename": filename,
+            "message": "File uploaded and saved to DB successfully",
+            "analysis": analysis
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
+
 
 @router.get("/export/{anki_package_id}")
 def export_deck(
