@@ -158,14 +158,14 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 #         "analysis": analysis
 #     }
 
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
-from sqlalchemy.orm import Session
-from uuid import uuid4
-import sqlite3
-import json
-import zipfile
-from models import User, AnkiPackage, AnkiNote, AnkiWord  # your SQLAlchemy models
-from dependencies import get_current_user, get_db
+# from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+# from sqlalchemy.orm import Session
+# from uuid import uuid4
+# import sqlite3
+# import json
+# import zipfile
+# from models import User, AnkiPackage, AnkiNote, AnkiWord  # your SQLAlchemy models
+# from dependencies import get_current_user, get_db
 
 router = APIRouter()
 
