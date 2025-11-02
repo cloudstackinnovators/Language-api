@@ -13,9 +13,8 @@ from app.models import User
 router = APIRouter()
 
 # Set your OpenAI API key (recommended: use environment variable)
-# openai.api_key = os.getenv("OPENAI_API_KEY") || 
+# openai.api_key = os.getenv("OPENAI_API_KEY") ||
 openai.api_key = "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"
-
 class PromptRequest(BaseModel):
     prompt: str
     max_tokens: int = 100
