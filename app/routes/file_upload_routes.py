@@ -296,6 +296,11 @@ async def upload_file(
                             "deck_count": deck_count,
                             "deck_names": [deck.get("name", "") for deck in decks.values()]
                         })
+                        anki_package.note_count = note_count
+                        anki_package.deck_count = deck_count
+                        anki_package.deck_names = list(deck.get("name", "") for deck in decks.values())
+                        db.commit()
+                        db.refresh(anki_package)
 
             except Exception as e:
                 analysis = {"error": f"Failed to analyze .apkg: {str(e)}"}
