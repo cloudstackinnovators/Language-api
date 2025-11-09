@@ -51,7 +51,7 @@ def forgot_password(request: schemas.ForgotPasswordRequest, db: Session = Depend
 
     # Generate reset token (JWT)
     token = create_reset_token({"sub": db_user.username}, expires_minutes=30)
-    reset_link = f"{FRONTEND_URL}/reset-password?token={token}"
+    reset_link = f"{FRONTEND_URL}/reset-password/{token}"
 
     # Send email
     send_email(
