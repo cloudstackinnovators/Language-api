@@ -8,7 +8,7 @@ from app.auth.auth_handler import (
 
 from app.utils.mail import send_email
 
-FRONTEND_URL = "https://vocablab.net/"
+FRONTEND_URL = "https://vocablab.net"
 
 
 
