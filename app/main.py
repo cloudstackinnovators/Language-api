@@ -7,7 +7,13 @@ from app.routes.file_upload_routes import router as file_upload_router
 from app.routes.decks_routes import router as decks_router
 from app.routes.dashboad_routes import router as dashboad_routes
 from app.database import Base, engine
+from dotenv import load_dotenv
+import os
 
+
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
+print("Loaded environment variables from .env file")
+print(os.getenv("OPENAI_API_KEY"))
 app = FastAPI()
 
 # Add this block before including routers

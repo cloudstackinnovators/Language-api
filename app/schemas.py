@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel,EmailStr
 from datetime import datetime
 
 class UserBase(BaseModel):
@@ -24,3 +24,9 @@ class User(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ChangePasswordRequest(BaseModel):
+    new_password: str
